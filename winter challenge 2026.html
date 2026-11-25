@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Карточная игра — несколько игроков</title>
+<style>
+:root{box-sizing:border-box;--bg:#faf8f4;--fg:#211e1a;--mut:#7a746b;--card:#fff;--ac:#b4442f;--acf:#fff;--bd:#e4ded3;--soft:#f2eee7}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171513;--fg:#f0ebe3;--mut:#a49b90;--card:#242120;--ac:#e0684f;--acf:#1a1210;--bd:#3b3530;--soft:#2d2925}}
+:root[data-theme="dark"]{--bg:#171513;--fg:#f0ebe3;--mut:#a49b90;--card:#242120;--ac:#e0684f;--acf:#1a1210;--bd:#3b3530;--soft:#2d2925}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:900px;margin:0 auto;padding:16px 14px 48px}
+h1{font-size:22px;margin:2px 0 3px}
+h2{font-size:17px;margin:22px 0 10px}
+h3{font-size:15px;margin:0 0 8px}
+.sub,.muted{color:var(--mut);font-size:13px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.panel{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:13px;margin:12px 0}
+.players{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,.btn{font:inherit;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:11px;padding:10px 13px;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--ac);color:var(--acf);border-color:var(--ac);font-weight:650}
+button.active{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+button.small{font-size:13px;padding:7px 10px}
+button.danger{color:#b23d2b}
+.player-tab{display:flex;align-items:center;gap:7px}
+.player-tab .dot{width:8px;height:8px;border-radius:50%;background:var(--mut)}
+.player-tab.active .dot{background:var(--ac)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.stats{display:flex;gap:15px;flex-wrap:wrap;color:var(--mut);font-size:13px}
+.stats b{color:var(--fg)}
+.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:14px 0}
+.actions button{min-height:62px;font-weight:650}
+.stage{background:var(--card);border:1px dashed var(--bd);border-radius:16px;padding:13px;min-height:150px;display:flex;gap:12px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.placeholder{color:var(--mut);text-align:center;padding:35px 12px;width:100%}
+.card{width:clamp(100px,23vw,150px);height:200px;min-width:0;overflow:hidden;text-align:center;cursor:pointer;border:2px solid transparent;border-radius:13px;padding:5px;background:var(--soft);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.card:hover,.card.selected{border-color:var(--ac)}
+.card img{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;display:block;border-radius:8px;background:var(--card)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:9px}
+.card-grid .card{width:100%;height:auto;aspect-ratio:3/4;min-height:0}
+.card-grid .card{width:100%}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input[type=number],input[type=text]{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:10px;padding:10px;width:100%}
+input[type=number]{width:100px}
+input[type=file]{display:none}
+label.upload{display:inline-block}
+.history-toggle{width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:0;padding:2px 0;background:transparent;color:var(--fg);font-weight:650}
+.history-toggle .muted{font-weight:400}
+.history-chevron{margin-left:auto;color:var(--mut);font-size:18px}
+.log{display:grid;gap:7px;margin-top:12px}
+.log-item{border-bottom:1px solid var(--bd);padding:7px 0;font-size:13px}
+.log-item:last-child{border:0}
+.log-time{color:var(--mut);font-size:11px}
+.player-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.overview-card{background:var(--soft);border-radius:12px;padding:11px}
+.overview-card .card-grid{grid-template-columns:repeat(auto-fill,minmax(65px,1fr))}
+.overview-card .card{padding:3px}
+.overview-card .card .caption{font-size:10px}
+.notice{background:var(--soft);border-radius:10px;padding:10px;color:var(--mut);font-size:13px;margin:10px 0}
+.hidden{display:none!important}
+.modal-back{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal{width:min(460px,100%);max-height:90vh;overflow:auto;background:var(--card);border:1px solid var(--bd);border-radius:17px;padding:17px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:15px}
+.lightbox{position:fixed;inset:0;background:#000e;display:none;align-items:center;justify-content:center;z-index:20;padding:14px}
+.lightbox.on{display:flex}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain}
+@media(max-width:520px){main{padding:12px 10px 35px}.actions{grid-template-columns:1fr}.actions button{min-height:48px}.card{width:calc(33.333% - 8px)}.stage .card{width:clamp(100px,23vw,150px);height:auto;aspect-ratio:3/4}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div><h1>Карточная игра</h1><div class="sub" id="globalInfo">Загрузи 52 изображения карт, чтобы начать</div></div>
+    <button class="small" id="themeBtn">Тема: авто</button>
+  </div>
+
+  <section class="panel">
+    <div class="section-head"><h3>Игроки</h3><button class="small" id="addPlayer">＋ Добавить игрока</button></div>
+    <div class="players" id="playerTabs"></div>
+    <div class="stats" id="playerStats"></div>
+  </section>
+
+  <div class="actions">
+    <button class="primary" id="randomOne">🎴 Случайная карта</button>
+    <button id="randomTwo">🎴 Рандом из двух</button>
+    <button id="randomThree">🎴 Рандом из трёх</button>
+    <button id="marketBtn">🛒 Рынок</button>
+    <button id="editBtn">✎ Редактировать руку</button>
+  </div>
+
+  <section class="panel" id="playPanel">
+    <div class="section-head"><h3 id="stageTitle">Игровое поле</h3><span class="muted" id="stageHint"></span></div>
+    <div class="stage" id="stage"><div class="placeholder">Выбери действие, чтобы начать</div></div>
+  </section>
+
+  <section class="panel hidden" id="handPanel">
+    <div class="section-head"><h3>Моя рука</h3><span class="muted" id="handCount"></span></div>
+    <div class="card-grid" id="handGrid"></div>
+    <div class="muted" id="handEmpty"></div>
+  </section>
+
+  <section class="panel">
+    <div class="section-head"><h3>Карты игроков</h3><span class="muted">Можно посмотреть руку каждого игрока</span></div>
+    <div class="player-overview" id="overview"></div>
+  </section>
+
+  <section class="panel">
+    <button class="history-toggle" id="historyToggle" aria-expanded="false" aria-controls="historyContent">
+      <span>История действий</span><span class="muted">Последние действия всех игроков</span><span class="history-chevron" id="historyChevron">＋</span>
+    </button>
+    <div id="historyContent" class="hidden">
+      <div class="log" id="allHistory"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>Колода и настройки</h3>
+    <div class="toolbar">
+      <label class="btn upload">Загрузить изображения<input type="file" id="file" accept="image/*" multiple></label>
+      <button id="resetPlayer">Вернуть колоду игрока</button>
+      <button id="resetGame">Сбросить игру</button>
+      <button id="restartApp" class="danger">Рестарт — удалить все карты</button>
+      <button class="small" id="renamePlayer">Переименовать игрока</button>
+      <button class="small danger" id="removePlayer">Удалить игрока</button>
+    </div>
+    <div class="notice" id="deckNote">Загрузи 52 изображения. Каждый игрок получит собственную копию полного набора. Изображения и прогресс сохраняются в этом браузере.</div>
+    <div class="stats" id="deckStats"></div>
+  </section>
+</main>
+
+<div class="modal-back hidden" id="modalBack"><div class="modal" id="modal"></div></div>
+<div class="lightbox" id="lightbox"><img id="lightboxImg" alt="Карта"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+let db=null, images={}, state={players:[],current:null,events:[],nextId:1};
+let mode='idle', pendingMarket=[], pendingThree=[], revealedCard=null;
+const promiseReq=req=>new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});
+const store=(name,mode='readonly')=>db.transaction(name,mode).objectStore(name);
+const shuffle=a=>{const x=[...a];for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[x[i],x[j]]=[x[j],x[i]]}return x};
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const current=()=>state.players.find(p=>p.id===state.current);
+const imageUrl=id=>images[id]?.url||'';
+const cardName=id=>images[id]?.name||'Карта';
+const sortByFileName=ids=>ids.sort((a,b)=>cardName(a).localeCompare(cardName(b),undefined,{numeric:true,sensitivity:'base'}));
+function save(){if(!db)return;try{db.transaction('st','readwrite').objectStore('st').put(state,'multi');}catch(e){}}
+function logAction(player,message){const event={player:player.name,message,time:new Date().toISOString()};state.events.unshift(event);if(state.events.length>250)state.events.length=250;}
+function newPlayer(name){const ids=Object.keys(images);return{id:'p'+(state.nextId++),name:name||'Игрок '+state.nextId,pool:shuffle(ids),hand:[],history:[]};}
+async function init(){
+ try{
+  db=await new Promise((resolve,reject)=>{const r=indexedDB.open('deck52',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('imgs'))r.result.createObjectStore('imgs',{keyPath:'id'});if(!r.result.objectStoreNames.contains('st'))r.result.createObjectStore('st')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+  const all=await promiseReq(store('imgs').getAll());
+  all.forEach(o=>{o.url=URL.createObjectURL(o.blob);images[o.id]=o});
+  const saved=await promiseReq(store('st').get('multi'));
+  if(saved&&Array.isArray(saved.players)){state={...state,...saved};}
+ }catch(e){$('#deckNote').textContent='Не удалось открыть хранилище браузера. Возможно, данные не будут сохранены.'}
+ if(!state.players.length){const p=newPlayer('Игрок 1');state.players=[p];state.current=p.id;}
+ // New images uploaded later are added to every player's own pool.
+ Object.values(images).forEach(o=>{state.players.forEach(p=>{if(!p.pool.includes(o.id)&&!p.hand.includes(o.id))p.pool.push(o.id)})});
+ render();
+}
+function showModal(content){$('#modal').innerHTML=content;$('#modalBack').classList.remove('hidden')}
+function closeModal(){$('#modalBack').classList.add('hidden')}
+$('#modalBack').addEventListener('click',e=>{if(e.target===$('#modalBack'))closeModal()});
+function cardElement(id,caption='',onClick=null,selected=false){
+ const el=document.createElement('div');el.className='card'+(selected?' selected':'');
+ const img=document.createElement('img');img.src=imageUrl(id);img.alt=cardName(id);
+ // Card faces are shown without filenames or captions.
+ el.append(img);el.addEventListener('click',()=>onClick?onClick(id):zoom(id));return el;
+}
+function zoom(id){$('#lightboxImg').src=imageUrl(id);$('#lightbox').classList.add('on')}
+$('#lightbox').onclick=()=>$('#lightbox').classList.remove('on');
+
+function render(){
+ const p=current(),total=Object.keys(images).length;
+ $('#globalInfo').textContent=total?`Загружено карт: ${total} · Игроков: ${state.players.length}`:'Загрузи 52 изображения карт, чтобы начать';
+ $('#playerTabs').innerHTML='';
+ state.players.forEach(pl=>{
+  const b=document.createElement('button');b.className='player-tab small'+(pl.id===state.current?' active':'');
+  b.innerHTML='<span class="dot"></span>';const span=document.createElement('span');span.textContent=pl.name;b.append(span);
+  b.onclick=()=>{
+   if(mode!=='idle'&&mode!=='revealed'&&!confirm('Сменить игрока и отменить текущее действие?'))return;
+   const oldPlayer=current();
+   if(oldPlayer&&pendingThree.length&&(mode==='two'||mode==='three'))oldPlayer.pool.push(...pendingThree);
+   if(oldPlayer&&pendingMarket.length&&(mode==='market'||mode==='replace'))oldPlayer.pool.push(...pendingMarket);
+   mode='idle';pendingMarket=[];pendingThree=[];selectedMarket=null;revealedCard=null;
+   state.current=pl.id;save();render();
+  };
+  $('#playerTabs').append(b);
+ });
+ if(p){
+  $('#playerStats').innerHTML=`<span>В руке: <b>${p.hand.length}</b></span><span>В колоде: <b>${p.pool.length}</b></span><span>Всего: <b>${p.hand.length+p.pool.length}</b></span>`;
+  $('#handCount').textContent=`${p.hand.length} карт`;
+  $('#handGrid').innerHTML='';
+  p.hand.forEach((id,i)=>{
+   const el=cardElement(id,'');
+   el.draggable=true;el.dataset.handIndex=String(i);
+   el.title='Перетащи, чтобы изменить порядок';
+   el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',String(i));e.dataTransfer.effectAllowed='move';el.classList.add('selected')});
+   el.addEventListener('dragend',()=>el.classList.remove('selected'));
+   el.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move'});
+   el.addEventListener('drop',e=>{
+    e.preventDefault();const from=Number(e.dataTransfer.getData('text/plain'));const to=Number(el.dataset.handIndex);
+    if(!Number.isInteger(from)||!Number.isInteger(to)||from===to)return;
+    const moved=p.hand.splice(from,1)[0];p.hand.splice(to,0,moved);
+    logAction(p,`изменил(а) порядок карт в руке`);save();render();
+   });
+   $('#handGrid').append(el);
+  });
+  $('#handEmpty').textContent=p.hand.length?'Перетаскивай карты мышью, чтобы менять их порядок.':'В руке пока нет карт.';
+ }else $('#playerStats').textContent='';
+ $('#handPanel').classList.remove('hidden');
+ $('#overview').innerHTML='';
+ state.players.forEach(pl=>{
+  const box=document.createElement('div');box.className='overview-card';
+  const head=document.createElement('div');head.innerHTML=`<b>${escapeHtml(pl.name)}</b><div class="muted">В руке: ${pl.hand.length} · В колоде: ${pl.pool.length}</div>`;
+  const grid=document.createElement('div');grid.className='card-grid';
+  pl.hand.forEach(id=>grid.append(cardElement(id)));
+  box.append(head,grid);$('#overview').append(box);
+ });
+ $('#allHistory').innerHTML='';
+ if(!state.events.length)$('#allHistory').innerHTML='<div class="muted">Действий пока нет.</div>';
+ state.events.slice(0,80).forEach(ev=>{
+  const d=document.createElement('div');d.className='log-item';
+  const t=new Date(ev.time);d.innerHTML=`<b>${escapeHtml(ev.player)}</b>: ${escapeHtml(ev.message)}<div class="log-time">${t.toLocaleString('ru-RU')}</div>`;$('#allHistory').append(d);
+ });
+ $('#deckStats').textContent=`Карт в наборе: ${total}. У каждого игрока: ${state.players.map(pl=>pl.name+': '+(pl.hand.length+pl.pool.length)).join(' · ')}`;
+ $('#randomOne').disabled=!p||p.pool.length===0||mode!=='idle'&&mode!=='revealed';
+ $('#randomTwo').disabled=!p||p.pool.length<2||mode!=='idle'&&mode!=='revealed';
+ $('#randomThree').disabled=!p||p.pool.length<2||mode!=='idle'&&mode!=='revealed';
+ $('#marketBtn').disabled=!p||p.pool.length===0||mode!=='idle'&&mode!=='revealed';
+ $('#editBtn').textContent=mode==='edit'?'Закончить редактирование':'✎ Редактировать руку';
+ $('#resetPlayer').disabled=!p||!total;
+ $('#removePlayer').disabled=state.players.length<=1;
+ renderStage();
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function renderStage(){
+ const p=current(),stage=$('#stage');stage.innerHTML='';
+ const addMessage=t=>{const d=document.createElement('div');d.className='placeholder';d.textContent=t;stage.append(d)};
+ if(mode==='three'||mode==='two'){
+  $('#stageTitle').textContent=mode==='three'?'Рандом из трёх':'Рандом из двух';
+  $('#stageHint').textContent='Выбери одну карту';
+  pendingThree.forEach((id,i)=>stage.append(cardElement(id,`Вариант ${i+1} · выбрать`,mode==='three'?chooseThree:chooseTwo)));
+  if(!pendingThree.length)addMessage('Нет карт в колоде.');
+ }else if(mode==='market'){
+  $('#stageTitle').textContent='Рынок';
+  $('#stageHint').textContent='Выбери карту для обмена';
+  pendingMarket.forEach((id,i)=>stage.append(cardElement(id,`Рынок · ${i+1}`,chooseMarket)));
+  if(!pendingMarket.length)addMessage('Рынок пуст.');
+  const skip=document.createElement('button');skip.textContent='Пропустить';skip.onclick=cancelMarket;stage.append(skip);
+ }else if(mode==='revealed'){
+  $('#stageTitle').textContent='Твоя случайная карта';
+  $('#stageHint').textContent='Карта добавлена в руку';
+  if(revealedCard)stage.append(cardElement(revealedCard,''));
+  else addMessage('Карта добавлена в руку.');
+ }else if(mode==='replace'){
+  $('#stageTitle').textContent='Замени карту';
+  $('#stageHint').textContent='Выбери одну карту из своей руки';
+  p.hand.forEach((id,i)=>stage.append(cardElement(id,`Заменить на эту · ${i+1}`,replaceHand)));
+  if(!p.hand.length)addMessage('В руке нет карт для замены. Рыночная карта будет просто добавлена в руку.');
+  const back=document.createElement('button');back.textContent='Назад к рынку';back.onclick=()=>{mode='market';selectedMarket=null;render()};stage.append(back);
+ }else if(mode==='edit'){
+  $('#stageTitle').textContent='Редактирование руки';
+  $('#stageHint').textContent='Нажми на карту, чтобы переместить её';
+  const col=document.createElement('div');col.style.width='100%';col.innerHTML='<h3>В руке — нажми, чтобы вернуть в колоду</h3>';
+  const hand=document.createElement('div');hand.className='card-grid';p.hand.forEach((id,i)=>hand.append(cardElement(id,cardName(id),()=>moveToDeck(id))));
+  if(!p.hand.length)hand.innerHTML='<div class="muted">Пока пусто</div>';col.append(hand);
+  const col2=document.createElement('div');col2.style.width='100%';col2.innerHTML='<h3 style="margin-top:16px">В колоде — нажми, чтобы добавить в руку</h3>';
+  const deck=document.createElement('div');deck.className='card-grid';sortByFileName([...p.pool]).forEach((id,i)=>deck.append(cardElement(id,'',()=>moveToHand(id))));
+  if(!p.pool.length)deck.innerHTML='<div class="muted">Колода пуста</div>';col2.append(deck);stage.append(col,col2);
+ }else{
+  $('#stageTitle').textContent='Игровое поле';$('#stageHint').textContent='';
+  addMessage('Выбери действие: «Рандом из трёх», «Рынок» или редактирование руки.');
+ }
+}
+function chooseThree(id){
+ const p=current();p.hand.push(id);p.history.push({type:'three',card:id,time:new Date().toISOString()});
+ const others=pendingThree.filter(x=>x!==id);p.pool.push(...shuffle(others));
+ logAction(p,`выбрал(а) карту «${cardName(id)}» из трёх`);
+ pendingThree=[];mode='idle';save();render();
+}
+$('#randomOne').onclick=()=>{
+ const p=current();if(!p?.pool.length||(mode!=='idle'&&mode!=='revealed'))return;
+ const id=pick(p.pool);p.pool=p.pool.filter(x=>x!==id);p.hand.push(id);
+ p.history.push({type:'single',card:id,time:new Date().toISOString()});
+ logAction(p,'получил(а) случайную карту');
+ revealedCard=id;mode='revealed';save();render();
+};
+$('#randomTwo').onclick=()=>{
+ const p=current();if(!p||p.pool.length<2||(mode!=='idle'&&mode!=='revealed'))return;
+ pendingThree=shuffle(p.pool).slice(0,2);
+ p.pool=p.pool.filter(id=>!pendingThree.includes(id));mode='two';render();
+};
+function chooseTwo(id){
+ const p=current();p.hand.push(id);
+ const other=pendingThree.find(x=>x!==id);if(other)p.pool.push(other);
+ p.history.push({type:'two',card:id,time:new Date().toISOString()});
+ logAction(p,`выбрал(а) карту «${cardName(id)}» из двух`);
+ pendingThree=[];mode='idle';save();render();
+}
+$('#randomThree').onclick=()=>{
+ const p=current();if(!p||p.pool.length<2||(mode!=='idle'&&mode!=='revealed'))return;
+ pendingThree=shuffle(p.pool).slice(0,Math.min(3,p.pool.length));
+ p.pool=p.pool.filter(id=>!pendingThree.includes(id));mode='three';render();
+};
+function chooseMarket(id){
+ selectedMarket=id;mode='replace';
+ if(!current().hand.length){replaceHand(null);return}
+ render();
+}
+let selectedMarket=null;
+function replaceHand(id){
+ const p=current();
+ if(id!==null){p.hand=p.hand.filter(x=>x!==id);p.pool.push(id)}
+ p.hand.push(selectedMarket);
+ p.history.push({type:'market',got:selectedMarket,gave:id,time:new Date().toISOString()});
+ logAction(p,`обменял(а) «${cardName(id)}» на рыночную карту «${cardName(selectedMarket)}»`);
+ pendingMarket.filter(x=>x!==selectedMarket).forEach(x=>p.pool.push(x));
+ pendingMarket=[];selectedMarket=null;mode='idle';save();render();
+}
+$('#marketBtn').onclick=()=>{
+ const p=current();if(!p?.pool.length||(mode!=='idle'&&mode!=='revealed'))return;
+ showModal(`<h3>Сколько карт на рынке?</h3><p class="muted">В колоде сейчас ${p.pool.length} карт.</p><input id="marketAmount" type="number" min="1" max="${p.pool.length}" value="${Math.min(3,p.pool.length)}"><div class="modal-actions"><button id="cancelMarket">Отмена</button><button class="primary" id="startMarket">Показать рынок</button></div>`);
+ $('#cancelMarket').onclick=closeModal;
+ $('#startMarket').onclick=()=>{
+  const n=Number($('#marketAmount').value);if(!Number.isInteger(n)||n<1||n>p.pool.length){alert(`Введи число от 1 до ${p.pool.length}.`);return}
+  pendingMarket=shuffle(p.pool).slice(0,n);p.pool=p.pool.filter(x=>!pendingMarket.includes(x));selectedMarket=null;mode='market';closeModal();render();
+ };
+};
+function poolsReturn(ids){const p=current();if(p&&ids?.length)p.pool.push(...ids)}
+function cancelMarket(){
+ const p=current();if(!p)return;
+ p.pool.push(...pendingMarket);pendingMarket=[];selectedMarket=null;mode='idle';save();render();
+}
+function moveToDeck(id){const p=current();p.hand=p.hand.filter(x=>x!==id);p.pool.push(id);sortByFileName(p.pool);logAction(p,'вернул(а) карту в колоду на исходное место по имени файла');save();render()}
+function moveToHand(id){const p=current();p.pool=p.pool.filter(x=>x!==id);p.hand.push(id);logAction(p,`добавил(а) «${cardName(id)}» из колоды в руку`);save();render()}
+$('#editBtn').onclick=()=>{if(mode==='edit'){mode='idle';save()}else{if(mode!=='idle'&&mode!=='revealed'){alert('Сначала заверши текущее действие.');return}mode='edit'}render()};
+$('#addPlayer').onclick=()=>showModal(`<h3>Новый игрок</h3><input id="newName" type="text" placeholder="Имя игрока" maxlength="30"><div class="modal-actions"><button id="cancelAdd">Отмена</button><button class="primary" id="confirmAdd">Добавить</button></div>`);
+document.addEventListener('click',e=>{
+ if(e.target.id==='cancelAdd')closeModal();
+ if(e.target.id==='confirmAdd'){
+  const name=$('#newName').value.trim()||`Игрок ${state.players.length+1}`;
+  const p=newPlayer(name);state.players.push(p);state.current=p.id;mode='idle';save();closeModal();render();
+ }
+});
+$('#renamePlayer').onclick=()=>{const p=current();if(!p)return;showModal(`<h3>Переименовать игрока</h3><input id="renameValue" type="text" maxlength="30" value="${escapeHtml(p.name)}"><div class="modal-actions"><button id="cancelRename">Отмена</button><button class="primary" id="confirmRename">Сохранить</button></div>`)};
+document.addEventListener('click',e=>{
+ if(e.target.id==='cancelRename')closeModal();
+ if(e.target.id==='confirmRename'){const p=current();const n=$('#renameValue').value.trim();if(n)p.name=n;logAction(p,'изменил(а) имя игрока');save();closeModal();render()}
+});
+$('#removePlayer').onclick=()=>{if(state.players.length<=1)return;const p=current();if(!confirm(`Удалить игрока «${p.name}» и его прогресс?`))return;state.players=state.players.filter(x=>x.id!==p.id);state.current=state.players[0].id;logAction(current(),`удалён игрок ${p.name}`);mode='idle';save();render()};
+$('#resetPlayer').onclick=()=>{const p=current();if(!p||!confirm(`Вернуть все карты игрока «${p.name}» в его колоду и очистить руку?`))return;p.pool=shuffle(Object.keys(images));p.hand=[];p.history=[];logAction(p,'сбросил(а) свою колоду');mode='idle';revealedCard=null;save();render()};
+$('#resetGame').onclick=()=>{if(!confirm('Сбросить прогресс всех игроков? Все руки и истории будут очищены.'))return;state.players.forEach(p=>{p.pool=shuffle(Object.keys(images));p.hand=[];p.history=[]});state.events=[];mode='idle';pendingMarket=[];pendingThree=[];revealedCard=null;save();render()};
+$('#restartApp').onclick=async()=>{
+ if(!confirm('Рестарт удалит все загруженные изображения, карты в руках и колодах, а также историю действий. Игроки останутся, но у каждого будет 0 карт. Продолжить?'))return;
+ mode='idle';pendingMarket=[];pendingThree=[];selectedMarket=null;
+ Object.values(images).forEach(o=>{try{URL.revokeObjectURL(o.url)}catch(e){}});
+ images={};
+ state.players.forEach(p=>{p.pool=[];p.hand=[];p.history=[]});
+ state.events=[];
+ try{
+  await promiseReq(store('imgs','readwrite').clear());
+ }catch(e){
+  alert('Не удалось очистить хранилище изображений. Попробуй ещё раз.');
+  return;
+ }
+ save();
+ render();
+};
+$('#file').onchange=async e=>{
+ const files=[...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+ for(const f of files){
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  const obj={id,name:f.name,blob:f,url:URL.createObjectURL(f)};images[id]=obj;
+  try{await promiseReq(store('imgs','readwrite').put({id,name:f.name,blob:f}))}catch(err){}
+  state.players.forEach(p=>p.pool.push(id));
+ }
+ e.target.value='';logAction(current(),'загрузил(а) новые изображения карт');save();render();
+};
+$('#themeBtn').onclick=()=>{const root=document.documentElement;const next=root.dataset.theme==='dark'?'light':root.dataset.theme==='light'?'':'dark';if(next)root.dataset.theme=next;else delete root.dataset.theme;$('#themeBtn').textContent='Тема: '+(next||'авто')};
+$('#historyToggle').onclick=()=>{
+ const content=$('#historyContent');const opening=content.classList.contains('hidden');
+ content.classList.toggle('hidden',!opening);
+ $('#historyToggle').setAttribute('aria-expanded',String(opening));
+ $('#historyChevron').textContent=opening?'−':'＋';
+};
+init();
+</script>
+</body></html>
